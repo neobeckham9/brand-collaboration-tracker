@@ -1,3 +1,7 @@
+import { useRef, useState } from 'react'
+import ReportTemplate from './ReportTemplate.jsx'
+import { generatePdfReport } from '../utils/generatePdfReport.js'
+
 function DetailRow({ label, value }) {
   return (
     <div className="grid gap-1 border-b border-slate-100 py-3 last:border-b-0 md:grid-cols-[170px_1fr]">
@@ -17,6 +21,20 @@ function DetailSection({ title, children }) {
 }
 
 function ClientDetail({ record, text, onEdit }) {
+  const reportRef = useRef(null)
+  const [exporting, setExporting] = useState(false)
+
+  async function handleExport() {
+    if (!reportRef.current || exporting) return
+    setExporting(true)
+    try {
+      const filename = `report-${record.brandName.replace(/\s+/g, '-')}-${new Date().toISOString().slice(0, 10)}.pdf`
+      await generatePdfReport(reportRef.current, filename)
+    } finally {
+      setExporting(false)
+    }
+  }
+
   if (!record) {
     return (
       <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-500 shadow-panel">
@@ -37,6 +55,20 @@ function ClientDetail({ record, text, onEdit }) {
 
   return (
     <div className="space-y-5">
+      {/* Off-screen report template captured by html2canvas */}
+      <div
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: '-9999px',
+          zIndex: -1,
+          pointerEvents: 'none',
+        }}
+        aria-hidden="true"
+      >
+        <ReportTemplate ref={reportRef} record={record} text={text} />
+      </div>
+
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-panel">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -58,13 +90,23 @@ function ClientDetail({ record, text, onEdit }) {
               <p className="text-xs uppercase tracking-[0.14em] text-slate-500">{text.detail.nextFollowUp}</p>
               <p className="mt-1 text-sm font-semibold text-slate-700">{record.nextFollowUpDate}</p>
             </div>
-            <button
-              type="button"
-              onClick={() => onEdit(record)}
-              className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-            >
-              {text.detail.edit}
-            </button>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => onEdit(record)}
+                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+              >
+                {text.detail.edit}
+              </button>
+              <button
+                type="button"
+                onClick={handleExport}
+                disabled={exporting}
+                className="rounded-xl border border-[#1e3a5f] bg-[#1e3a5f] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#162d4a] disabled:cursor-wait disabled:opacity-60"
+              >
+                {exporting ? '…' : text.detail.exportButton}
+              </button>
+            </div>
           </div>
         </div>
       </section>
